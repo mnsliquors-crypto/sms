@@ -1,0 +1,504 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    /* NetSuite / Redwood Inspired Palette */
+    --ns-navy: #003366;
+    --ns-blue: #125699;
+    --ns-bg: #f4f7f9;
+    --ns-border: #d5dade;
+    --ns-header-bg: #ffffff;
+    --ns-menu-bg: #003366;
+    --ns-active: #ffffff;
+    --ns-text: #333333;
+    --ns-muted: #666666;
+
+    /* KPI Color Accents */
+    --kpi-blue: #125699;
+    --kpi-purple: #7C3AED;
+    --kpi-green: #22c55e;
+    --kpi-orange: #f97316;
+    --kpi-red: #ef4444;
+    --kpi-gold: #eab308;
+
+    --transition: all 0.2s ease;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--ns-bg);
+    color: var(--ns-text);
+    margin: 0;
+    overflow-x: hidden;
+}
+
+/* Layout Grid - Full Width (No Sidebar) */
+.erp-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Header Layer 1: Branding & Profile */
+.erp-header-top {
+    height: 50px;
+    background: var(--ns-header-bg);
+    border-bottom: 1px solid var(--ns-border);
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    justify-content: space-between;
+    z-index: 1050;
+}
+
+.ns-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--ns-navy);
+}
+
+.ns-logo img {
+    height: 28px;
+}
+
+.ns-search {
+    flex: 0 1 500px;
+    position: relative;
+}
+
+.ns-search input {
+    width: 100%;
+    height: 32px;
+    background: #f8fafc;
+    border: 1px solid var(--ns-border);
+    border-radius: 4px;
+    padding: 0 1rem 0 2.5rem;
+    font-size: 0.85rem;
+}
+
+.ns-search i {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ns-muted);
+}
+
+/* Header Layer 2: Main Navigation */
+.erp-nav-bar {
+    height: 40px;
+    background: var(--ns-menu-bg);
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    z-index: 1040;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ns-menu {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+.ns-menu-item {
+    position: relative;
+    height: 100%;
+}
+
+.ns-menu-link {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 1.25rem;
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none !important;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.ns-menu-link:hover,
+.ns-menu-item.active .ns-menu-link {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+/* Dropdowns */
+.ns-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #fff;
+    min-width: 220px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--ns-border);
+    display: none;
+    padding: 0.5rem 0;
+    border-radius: 0 0 4px 4px;
+}
+
+.ns-menu-item:hover>.ns-dropdown {
+    display: block;
+}
+
+.ns-dropdown-link {
+    display: block;
+    padding: 0.6rem 1.5rem;
+    color: var(--ns-text);
+    text-decoration: none !important;
+    font-size: 0.85rem;
+    transition: var(--transition);
+}
+
+.ns-dropdown-link:hover {
+    background: #f4f7f9;
+    color: var(--ns-blue);
+}
+
+/* Contextual Page Header */
+.ns-page-header {
+    background: #fff;
+    padding: 1.5rem 1.5rem;
+    border-bottom: 1px solid var(--ns-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ns-page-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--ns-navy);
+}
+
+.ns-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.ns-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--ns-border);
+    background: #fff;
+    color: var(--ns-text);
+    transition: var(--transition);
+}
+
+.ns-btn-primary {
+    background: var(--ns-blue);
+    color: #fff;
+    border-color: var(--ns-blue);
+}
+
+.ns-btn:hover {
+    filter: brightness(0.95);
+}
+
+/* Main Content Wrapper */
+.erp-main {
+    flex: 1;
+    padding: 2rem 1.5rem;
+}
+
+/* Portlet / Card Optimization */
+.card {
+    border: 1px solid var(--ns-border) !important;
+    border-radius: 4px !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    background: #fcfdfe !important;
+    border-bottom: 1px solid var(--ns-border) !important;
+    padding: 0.75rem 1rem !important;
+}
+
+.card-title {
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    color: var(--ns-navy) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+/* Footer Section */
+.erp-footer {
+    background: #fff;
+    border-top: 1px solid var(--ns-border);
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--ns-muted);
+}
+
+/* NetSuite Style Resets */
+.erp-main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding-top: 0 !important;
+    /* Context bar handles padding */
+}
+
+/* Hide AdminLTE Sidebar artifacts */
+.main-sidebar,
+.sidebar-mini.sidebar-collapse .main-sidebar {
+    display: none !important;
+}
+
+.content-wrapper,
+.main-footer,
+.control-sidebar {
+    margin-left: 0 !important;
+}
+
+/* Fix for the bullet points in the screenshot */
+ul,
+li {
+    list-style: none !important;
+    padding: 0;
+    margin: 0;
+}
+
+.ns-menu li {
+    list-style: none !important;
+}
+
+/* NetSuite Dashboard Tiles (KPI Cards) */
+.kpi-card {
+    background: #ffffff !important;
+    border: 1px solid var(--ns-border) !important;
+    border-radius: 4px !important;
+    padding: 1rem !important;
+    position: relative;
+    overflow: hidden;
+    min-height: 110px;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
+    cursor: default;
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+    border-color: var(--ns-blue) !important;
+}
+
+.kpi-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
+    pointer-events: none;
+}
+
+.kpi-card .card-body {
+    padding: 0 !important;
+}
+
+.kpi-label {
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    color: var(--ns-muted) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.kpi-value {
+    font-size: 1.75rem !important;
+    font-weight: 700 !important;
+    color: var(--ns-navy) !important;
+    line-height: 1;
+}
+
+.kpi-icon {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 2.5rem !important;
+    color: var(--ns-blue) !important;
+    opacity: 0.07 !important;
+    transition: transform 0.4s ease, opacity 0.4s ease !important;
+}
+
+.kpi-card:hover .kpi-icon {
+    transform: translateY(-50%) rotate(-5deg) scale(1.1);
+    opacity: 0.12 !important;
+}
+
+.kpi-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-top: 0.75rem;
+}
+
+.badge-up {
+    background: #e6fcf5;
+    color: #0ca678;
+}
+
+.badge-down {
+    background: #fff5f5;
+    color: #f03e3e;
+}
+
+/* Color Variants */
+.kpi-blue {
+    border-left: 4px solid var(--kpi-blue) !important;
+}
+
+.kpi-blue .kpi-icon {
+    color: var(--kpi-blue) !important;
+    opacity: 0.1 !important;
+}
+
+.kpi-blue .kpi-value {
+    color: var(--kpi-blue) !important;
+}
+
+.kpi-purple {
+    border-left: 4px solid var(--kpi-purple) !important;
+}
+
+.kpi-purple .kpi-icon {
+    color: var(--kpi-purple) !important;
+    opacity: 0.1 !important;
+}
+
+.kpi-purple .kpi-value {
+    color: var(--kpi-purple) !important;
+}
+
+.kpi-green {
+    border-left: 4px solid var(--kpi-green) !important;
+}
+
+.kpi-green .kpi-icon {
+    color: var(--kpi-green) !important;
+    opacity: 0.1 !important;
+}
+
+.kpi-green .kpi-value {
+    color: var(--kpi-green) !important;
+}
+
+.kpi-orange {
+    border-left: 4px solid var(--kpi-orange) !important;
+}
+
+.kpi-orange .kpi-icon {
+    color: var(--kpi-orange) !important;
+    opacity: 0.1 !important;
+}
+
+.kpi-orange .kpi-value {
+    color: var(--kpi-orange) !important;
+}
+
+.kpi-red {
+    border-left: 4px solid var(--kpi-red) !important;
+}
+
+.kpi-red .kpi-icon {
+    color: var(--kpi-red) !important;
+    opacity: 0.1 !important;
+}
+
+.kpi-red .kpi-value {
+    color: var(--kpi-red) !important;
+}
+
+.kpi-gold {
+    border-left: 4px solid var(--kpi-gold) !important;
+}
+
+.kpi-gold .kpi-icon {
+    color: var(--kpi-gold) !important;
+    opacity: 0.1 !important;
+}
+
+.kpi-gold .kpi-value {
+    color: var(--kpi-gold) !important;
+}
+
+.kpi-cyan {
+    border-left: 4px solid var(--kpi-cyan) !important;
+}
+
+.kpi-cyan .kpi-icon {
+    color: var(--kpi-cyan) !important;
+    opacity: 0.1 !important;
+}
+
+.kpi-cyan .kpi-value {
+    color: var(--kpi-cyan) !important;
+}
+
+/* Charts & Other Cards */
+.chart-card {
+    background: #fff !important;
+    border: 1px solid var(--ns-border) !important;
+    border-radius: 4px !important;
+}
+
+/* Pulse Animation for Low Stock */
+@keyframes kpi-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+.kpi-pulse {
+    animation: kpi-pulse 2s infinite;
+}
+
+.kpi-red.kpi-pulse {
+    border-color: var(--kpi-red) !important;
+}
+
+/* Responsive Overrides */
+@media (max-width: 991px) {
+    .ns-menu {
+        display: none;
+    }
+
+    .ns-search {
+        flex: 1;
+        margin: 0 1rem;
+        width: 100%;
+    }
+
+    .ns-search.d-flex {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+}
