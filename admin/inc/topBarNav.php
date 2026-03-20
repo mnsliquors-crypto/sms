@@ -176,6 +176,7 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'home';
                 <a href="<?php echo base_url ?>admin/?page=system/settings" class="ns-dropdown-link">Company Information</a>
                 <a href="<?php echo base_url ?>admin/?page=transactions/opening_balances" class="ns-dropdown-link">Opening Balances</a>
                 <a href="<?php echo base_url ?>admin/?page=system/settings/ref_codes" class="ns-dropdown-link">Reference Codes</a>
+                <a href="<?php echo base_url ?>admin/?page=system/git_sync" class="ns-dropdown-link">Git Sync (Backup)</a>
             </div>
         </li>
         <?php endif; ?>

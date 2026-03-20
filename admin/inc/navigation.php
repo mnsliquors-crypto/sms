@@ -328,6 +328,13 @@
                     </li>
 
                     <li class="nav-item">
+                      <a href="<?php echo base_url ?>admin/?page=system/git_sync" class="nav-link nav-system_git_sync">
+                        <i class="nav-icon fab fa-github text-primary"></i>
+                        <p>Git Sync (Backup)</p>
+                      </a>
+                    </li>
+
+                    <li class="nav-item">
                       <a href="<?php echo base_url ?>admin/?page=system/settings" class="nav-link nav-system_settings">
                         <i class="nav-icon fas fa-cogs"></i>
                         <p>System Settings</p>

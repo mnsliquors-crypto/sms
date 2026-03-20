@@ -116,6 +116,14 @@
 						<label for="print_invoice_count" class="control-label small">Invoice Print Copies</label>
 						<input type="number" step="1" min="1" class="form-control form-control-sm" name="print_invoice_count" id="print_invoice_count" value="<?php echo $_settings->info('print_invoice_count') ?: 1 ?>">
 					</div>
+					<div class="form-group text-dark mb-0 mt-2">
+						<label for="git_path" class="control-label small">Git Executable Path</label>
+						<input type="text" class="form-control form-control-sm" name="git_path" id="git_path" value="<?php echo $_settings->info('git_path') ?: 'C:\Users\USERE\AppData\Local\GitHubDesktop\app-3.5.6\resources\app\git\cmd\git.exe' ?>">
+					</div>
+					<div class="form-group text-dark mb-0 mt-2">
+						<label for="mysql_bin" class="control-label small">MySQL Bin Directory</label>
+						<input type="text" class="form-control form-control-sm" name="mysql_bin" id="mysql_bin" value="<?php echo $_settings->info('mysql_bin') ?: 'C:\xampp\mysql\bin\\' ?>">
+					</div>
 				</div>
 			</div>
 			</form>
