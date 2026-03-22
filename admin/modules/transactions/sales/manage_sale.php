@@ -206,6 +206,10 @@ while($row = $item_qry->fetch_assoc()){
                             $total_qty += floatval($row['quantity']);
                             $row_cost_amt = floatval($row['item_cost']) * floatval($row['quantity']);
                             $row_profit = floatval($row['profit']);
+                            // If stored profit is 0 (old records), recalculate from cost
+                            if($row_profit == 0 && $row_cost_amt > 0){
+                                $row_profit = floatval($row['total_price']) - $row_cost_amt;
+                            }
                             $total_cost_amt += $row_cost_amt;
                             $total_profit += $row_profit;
                         ?>
@@ -543,6 +547,17 @@ while($row = $item_qry->fetch_assoc()){
         if('<?php echo isset($id) ?>' == 1) {
             $('#list tbody tr').each(function(){
                 var tr = $(this);
+                var qty = parseFloat(tr.find('.qty-input').val()) || 0;
+                var price = parseFloat(tr.find('.price-input').val()) || 0;
+                var row_cost = parseFloat(tr.attr('data-cost')) || 0;
+                var total = qty * price;
+                var cost_amt = row_cost * qty;
+                var profit = total - cost_amt;
+                // Recalculate profit if stored value is 0 or missing
+                var storedProfit = parseFloat(tr.find('.profit-input').val()) || 0;
+                if(storedProfit == 0 && cost_amt > 0){
+                    tr.find('.profit-input').val(profit.toFixed(2));
+                }
                 tr.find('.rem_row').click(function(){ $(this).closest('tr').remove(); calc(); });
             });
             calc();

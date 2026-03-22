@@ -340,6 +340,13 @@
                         <p>System Settings</p>
                       </a>
                     </li>
+
+                    <li class="nav-item">
+                      <a href="<?php echo base_url ?>admin/?page=system/audit_logs" class="nav-link nav-system_audit_logs">
+                        <i class="nav-icon fas fa-history"></i>
+                        <p>System Audit Logs</p>
+                      </a>
+                    </li>
                     <?php endif; ?>
 
                   </ul>

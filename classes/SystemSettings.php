@@ -210,6 +210,43 @@ class SystemSettings extends DBConnection{
 		$sql = "INSERT INTO `system_logs` (`user_id`, `action`, `module`, `ref_id`, `old_data`, `new_data`) VALUES (?, ?, ?, ?, ?, ?)";
 		$this->queryPrepared($sql, 'isssss', [$user_id, $action, $module, $ref_id, $old_data, $new_data]);
 	}
+
+    public function audit_log($table_name, $record_id, $action_type, $old_data = [], $new_data = [], $module_name = 'System') {
+        $user_id = $this->userdata('id') ?: 0;
+        $ip_address = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $device_info = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
+
+        // Action type handling
+        if ($action_type === 'CREATE') {
+            $sql = "INSERT INTO `system_logs` (`user_id`, `action`, `action_type`, `table_name`, `module`, `ref_id`, `new_data`, `ip_address`, `device_info`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $new_json = json_encode($new_data);
+            $action_desc = "Created record in {$table_name}";
+            $this->queryPrepared($sql, 'issssssss', [$user_id, $action_desc, $action_type, $table_name, $module_name, $record_id, $new_json, $ip_address, $device_info]);
+        } elseif ($action_type === 'DELETE') {
+            $sql = "INSERT INTO `system_logs` (`user_id`, `action`, `action_type`, `table_name`, `module`, `ref_id`, `old_data`, `ip_address`, `device_info`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $old_json = json_encode($old_data);
+            $action_desc = "Deleted record in {$table_name}";
+            $this->queryPrepared($sql, 'issssssss', [$user_id, $action_desc, $action_type, $table_name, $module_name, $record_id, $old_json, $ip_address, $device_info]);
+        } elseif ($action_type === 'UPDATE') {
+            $sql = "INSERT INTO `system_logs` (`user_id`, `action`, `action_type`, `table_name`, `module`, `ref_id`, `field_name`, `old_data`, `new_data`, `ip_address`, `device_info`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $stmt = $this->conn->prepare($sql);
+            if($stmt){
+                foreach ($new_data as $field => $new_val) {
+                    $old_val = isset($old_data[$field]) ? $old_data[$field] : null;
+                    // Strict type string comparison
+                    if ((string)$old_val !== (string)$new_val) {
+                        $action_desc = "Updated {$field} in {$table_name}";
+                        $old_str = is_array($old_val) ? json_encode($old_val) : (string)$old_val;
+                        $new_str = is_array($new_val) ? json_encode($new_val) : (string)$new_val;
+                        
+                        $stmt->bind_param('issssssssss', $user_id, $action_desc, $action_type, $table_name, $module_name, $record_id, $field, $old_str, $new_str, $ip_address, $device_info);
+                        $stmt->execute();
+                    }
+                }
+                $stmt->close();
+            }
+        }
+    }
 }
 $_settings = new SystemSettings();
 $_settings->load_system_info();

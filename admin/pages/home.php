@@ -30,7 +30,6 @@ if(!$low_stock_data){
 $low_stock_list = $low_stock_data['list'];
 $low_stock_count_init = $low_stock_data['count'];
 ?>
-?>
 <style>
 /* ── Dashboard Styles ──────────────────────────────────────────── */
 .kpi-card {

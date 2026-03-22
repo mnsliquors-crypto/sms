@@ -12,8 +12,8 @@ Class Master extends DBConnection {
         $this->cache = new Cache();
     }
     
-    public function clear_cache($key = 'dashboard'){
-        if(isset($this->cache)) $this->cache->delete($key);
+    public function clear_cache($key = null){
+        if(isset($this->cache)) $this->cache->clear();
     }
     
     public function __destruct(){
@@ -48,8 +48,15 @@ Class Master extends DBConnection {
         }
         $check_stmt->close();
 
+        // Get old data for audit
+        $old_data = [];
+        if(!empty($id)){
+            $old_qry = $this->conn->query("SELECT * FROM `entity_list` WHERE id = '{$id}'");
+            if($old_qry && $old_qry->num_rows > 0) $old_data = $old_qry->fetch_assoc();
+        }
+
         if(empty($id)){
-        $sql = "INSERT INTO `entity_list` (`entity_type`, `display_name`, `address`, `city`, `state`, `cperson`, `contact`, `alternate_contact`, `status`, `tax_id`, `excise_license_no`, `credit_limit`, `credit_days`, `opening_balance`, `created_by`, `ip_address`) VALUES ('Supplier', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO `entity_list` (`entity_type`, `display_name`, `address`, `city`, `state`, `cperson`, `contact`, `alternate_contact`, `status`, `tax_id`, `excise_license_no`, `credit_limit`, `credit_days`, `opening_balance`, `created_by`) VALUES ('Supplier', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $this->conn->prepare($sql);
         $tax_id = $tax_id ?? null;
         $excise_license_no = $excise_license_no ?? null;
@@ -59,9 +66,9 @@ Class Master extends DBConnection {
         $credit_limit = $credit_limit ?? 0;
         $credit_days = $credit_days ?? 0;
         $opening_balance = $opening_balance ?? 0;
-        $stmt->bind_param("ssssssssissiddis", $name, $address, $city, $state, $cperson, $contact, $alternate_contact, $status, $tax_id, $excise_license_no, $credit_limit, $credit_days, $opening_balance, $user_id, $ip);
+        $stmt->bind_param("sssssssissiddi", $name, $address, $city, $state, $cperson, $contact, $alternate_contact, $status, $tax_id, $excise_license_no, $credit_limit, $credit_days, $opening_balance, $user_id);
     }else{
-        $sql = "UPDATE `entity_list` SET `display_name` = ?, `address` = ?, `city` = ?, `state` = ?, `cperson` = ?, `contact` = ?, `alternate_contact` = ?, `status` = ?, `tax_id` = ?, `excise_license_no` = ?, `credit_limit` = ?, `credit_days` = ?, `opening_balance` = ?, `updated_by` = ?, `ip_address` = ? WHERE id = ? AND `entity_type` = 'Supplier'";
+        $sql = "UPDATE `entity_list` SET `display_name` = ?, `address` = ?, `city` = ?, `state` = ?, `cperson` = ?, `contact` = ?, `alternate_contact` = ?, `status` = ?, `tax_id` = ?, `excise_license_no` = ?, `credit_limit` = ?, `credit_days` = ?, `opening_balance` = ?, `updated_by` = ? WHERE id = ? AND `entity_type` = 'Supplier'";
         $stmt = $this->conn->prepare($sql);
         $tax_id = $tax_id ?? null;
         $excise_license_no = $excise_license_no ?? null;
@@ -71,7 +78,7 @@ Class Master extends DBConnection {
         $credit_limit = $credit_limit ?? 0;
         $credit_days = $credit_days ?? 0;
         $opening_balance = $opening_balance ?? 0;
-        $stmt->bind_param("ssssssssissiddisi", $name, $address, $city, $state, $cperson, $contact, $alternate_contact, $status, $tax_id, $excise_license_no, $credit_limit, $credit_days, $opening_balance, $user_id, $ip, $id);
+        $stmt->bind_param("sssssssissiddii", $name, $address, $city, $state, $cperson, $contact, $alternate_contact, $status, $tax_id, $excise_license_no, $credit_limit, $credit_days, $opening_balance, $user_id, $id);
     }
 
     if($stmt->execute()){
@@ -86,6 +93,14 @@ Class Master extends DBConnection {
             $resp['id'] = $vendor_id;
             $resp['msg'] = empty($id) ? "New Vendor successfully saved." : "Vendor successfully updated.";
             $this->settings->log_action($user_id, (empty($id) ? "Created" : "Updated")." Vendor", "Vendors", $vendor_id);
+            
+            // Generate Audit Log
+            $new_data = [];
+            $new_qry = $this->conn->query("SELECT * FROM `entity_list` WHERE id = '{$vendor_id}'");
+            if($new_qry && $new_qry->num_rows > 0) $new_data = $new_qry->fetch_assoc();
+            $action_type = empty($id) ? 'CREATE' : 'UPDATE';
+            $this->settings->audit_log('entity_list', $vendor_id, $action_type, $old_data, $new_data, 'Vendors');
+
             $this->settings->set_flashdata('success', $resp['msg']);
             $this->clear_cache('dashboard');
             
@@ -102,12 +117,23 @@ Class Master extends DBConnection {
     
     private function delete_entity_record($id, $entity_type, $success_msg){
         $id = intval($id);
+        
+        // Get old data for audit log BEFORE deleting
+        $old_data = [];
+        $old_qry = $this->conn->query("SELECT * FROM `entity_list` WHERE id = '{$id}' AND `entity_type` = '{$entity_type}'");
+        if($old_qry && $old_qry->num_rows > 0) $old_data = $old_qry->fetch_assoc();
+
         $stmt = $this->conn->prepare("DELETE FROM `entity_list` WHERE id = ? AND `entity_type` = ?");
         $stmt->bind_param("is", $id, $entity_type);
         if($stmt->execute()){
             $resp['status'] = 'success';
             $this->settings->set_flashdata('success', $success_msg);
             $this->delete_from_index('entity_list', $id);
+            
+            // Generate Audit Log
+            $module_name = $entity_type == 'Supplier' ? 'Vendors' : 'Customers';
+            $this->settings->audit_log('entity_list', $id, 'DELETE', $old_data, [], $module_name);
+
             $this->clear_cache('dashboard');
         }else{
             $resp['status'] = 'failed';
@@ -140,8 +166,15 @@ Class Master extends DBConnection {
         }
         $check_stmt->close();
 
+        // Get old data for audit
+        $old_data = [];
+        if(!empty($id)){
+            $old_qry = $this->conn->query("SELECT * FROM `entity_list` WHERE id = '{$id}'");
+            if($old_qry && $old_qry->num_rows > 0) $old_data = $old_qry->fetch_assoc();
+        }
+
         if(empty($id)){
-        $sql = "INSERT INTO `entity_list` (`entity_type`, `display_name`, `contact`, `alternate_contact`, `email`, `address`, `city`, `state`, `status`, `credit_limit`, `credit_days`, `opening_balance`, `tax_id`, `created_by`, `ip_address`) VALUES ('Customer', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO `entity_list` (`entity_type`, `display_name`, `contact`, `alternate_contact`, `email`, `address`, `city`, `state`, `status`, `credit_limit`, `credit_days`, `opening_balance`, `tax_id`, `created_by`) VALUES ('Customer', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $this->conn->prepare($sql);
         $tax_id = $tax_id ?? null;
         $city = $city ?? null;
@@ -150,9 +183,9 @@ Class Master extends DBConnection {
         $credit_limit = $credit_limit ?? 0;
         $credit_days = $credit_days ?? 0;
         $opening_balance = $opening_balance ?? 0;
-        $stmt->bind_param("sssssssissiddsi", $name, $contact, $alternate_contact, $email, $address, $city, $state, $status, $credit_limit, $credit_days, $opening_balance, $tax_id, $user_id, $ip);
+        $stmt->bind_param("sssssssiddidsi", $name, $contact, $alternate_contact, $email, $address, $city, $state, $status, $credit_limit, $credit_days, $opening_balance, $tax_id, $user_id);
     }else{
-        $sql = "UPDATE `entity_list` SET `display_name` = ?, `contact` = ?, `alternate_contact` = ?, `email` = ?, `address` = ?, `city` = ?, `state` = ?, `status` = ?, `credit_limit` = ?, `credit_days` = ?, `opening_balance` = ?, `tax_id` = ?, `updated_by` = ?, `ip_address` = ? WHERE id = ? AND `entity_type` = 'Customer'";
+        $sql = "UPDATE `entity_list` SET `display_name` = ?, `contact` = ?, `alternate_contact` = ?, `email` = ?, `address` = ?, `city` = ?, `state` = ?, `status` = ?, `credit_limit` = ?, `credit_days` = ?, `opening_balance` = ?, `tax_id` = ?, `updated_by` = ? WHERE id = ? AND `entity_type` = 'Customer'";
         $stmt = $this->conn->prepare($sql);
         $tax_id = $tax_id ?? null;
         $city = $city ?? null;
@@ -161,7 +194,7 @@ Class Master extends DBConnection {
         $credit_limit = $credit_limit ?? 0;
         $credit_days = $credit_days ?? 0;
         $opening_balance = $opening_balance ?? 0;
-        $stmt->bind_param("sssssssissiddsisi", $name, $contact, $alternate_contact, $email, $address, $city, $state, $status, $credit_limit, $credit_days, $opening_balance, $tax_id, $user_id, $ip, $id);
+        $stmt->bind_param("sssssssiddidsii", $name, $contact, $alternate_contact, $email, $address, $city, $state, $status, $credit_limit, $credit_days, $opening_balance, $tax_id, $user_id, $id);
     }
 
     if($stmt->execute()){
@@ -179,6 +212,14 @@ Class Master extends DBConnection {
             $resp['id'] = $customer_id;
             $resp['msg'] = empty($id) ? "New Customer successfully saved." : "Customer successfully updated.";
             $this->settings->log_action($user_id, (empty($id) ? "Created" : "Updated")." Customer", "Customers", $customer_id);
+            
+            // Generate Audit Log
+            $new_data = [];
+            $new_qry = $this->conn->query("SELECT * FROM `entity_list` WHERE id = '{$customer_id}'");
+            if($new_qry && $new_qry->num_rows > 0) $new_data = $new_qry->fetch_assoc();
+            $action_type = empty($id) ? 'CREATE' : 'UPDATE';
+            $this->settings->audit_log('entity_list', $customer_id, $action_type, $old_data, $new_data, 'Customers');
+            
             $this->settings->set_flashdata('success', $resp['msg']);
             
             // Search Index Update
@@ -282,8 +323,15 @@ Class Master extends DBConnection {
     $vendor_id = isset($vendor_id) && !empty($vendor_id) ? intval($vendor_id) : NULL;
     $category_id = isset($category_id) && !empty($category_id) ? intval($category_id) : NULL;
 
+    // Get old data for audit log
+    $old_data = [];
+    if(!empty($id)){
+        $old_qry = $this->conn->query("SELECT * FROM `item_list` WHERE id = '{$id}'");
+        if($old_qry && $old_qry->num_rows > 0) $old_data = $old_qry->fetch_assoc();
+    }
+
     if(empty($id)){
-        $sql = "INSERT INTO `item_list` (`name`, `description`, `category_id`, `vendor_id`, `cost`, `selling_price`, `mrp`, `opening_cost`, `average_cost`, `unit`, `reorder_level`, `tax_type`, `status`, `created_by`, `ip_address`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO `item_list` (`name`, `description`, `category_id`, `vendor_id`, `cost`, `selling_price`, `mrp`, `opening_cost`, `average_cost`, `unit`, `reorder_level`, `tax_type`, `status`, `created_by`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $this->conn->prepare($sql);
         if(!$stmt) return json_encode(['status' => 'failed', 'msg' => "Prepare failed: " . $this->conn->error]);
 
@@ -292,10 +340,10 @@ Class Master extends DBConnection {
         $status = isset($status) ? intval($status) : 1;
         
         // Bind with types: s=string, i=int, d=double. unit(s), reorder(d)
-        $stmt->bind_param("ssiidddddsdiiis", $name, $description, $category_id, $vendor_id, $cost, $selling_price, $mrp, $opening_cost, $average_cost, $unit, $reorder_level, $tax_type, $status, $user_id, $ip);
+        $stmt->bind_param("ssiidddddsdiii", $name, $description, $category_id, $vendor_id, $cost, $selling_price, $mrp, $opening_cost, $average_cost, $unit, $reorder_level, $tax_type, $status, $user_id);
 
     }else{
-        $sql = "UPDATE `item_list` SET `name` = ?, `description` = ?, `category_id` = ?, `vendor_id` = ?, `cost` = ?, `selling_price` = ?, `mrp` = ?, `opening_cost` = ?, `average_cost` = ?, `unit` = ?, `reorder_level` = ?, `tax_type` = ?, `status` = ?, `updated_by` = ?, `ip_address` = ? WHERE id = ?";
+        $sql = "UPDATE `item_list` SET `name` = ?, `description` = ?, `category_id` = ?, `vendor_id` = ?, `cost` = ?, `selling_price` = ?, `mrp` = ?, `opening_cost` = ?, `average_cost` = ?, `unit` = ?, `reorder_level` = ?, `tax_type` = ?, `status` = ?, `updated_by` = ? WHERE id = ?";
         $stmt = $this->conn->prepare($sql);
         if(!$stmt) return json_encode(['status' => 'failed', 'msg' => "Prepare failed: " . $this->conn->error]);
 
@@ -304,13 +352,14 @@ Class Master extends DBConnection {
         $status = isset($status) ? intval($status) : 1;
         $id = intval($id);
         
-        $stmt->bind_param("ssiidddddsdiiisi", $name, $description, $category_id, $vendor_id, $cost, $selling_price, $mrp, $opening_cost, $average_cost, $unit, $reorder_level, $tax_type, $status, $user_id, $ip, $id);
+        $stmt->bind_param("ssiidddddsdiiii", $name, $description, $category_id, $vendor_id, $cost, $selling_price, $mrp, $opening_cost, $average_cost, $unit, $reorder_level, $tax_type, $status, $user_id, $id);
 
     }
 
         if($stmt->execute()){
             $item_id = empty($id) ? $this->conn->insert_id : $id;
             $resp['status'] = 'success';
+            $resp['id'] = $item_id;
             $resp['msg'] = empty($id) ? "New Item successfully saved." : "Item successfully updated.";
             
             if(isset($_FILES['img']) && $_FILES['img']['tmp_name'] != ''){
@@ -341,6 +390,14 @@ Class Master extends DBConnection {
                 }
             }
             $this->settings->log_action($user_id, (empty($id) ? "Created" : "Updated")." Item", "Items", $item_id);
+            
+            // Generate Audit Log
+            $new_data = [];
+            $new_qry = $this->conn->query("SELECT * FROM `item_list` WHERE id = '{$item_id}'");
+            if($new_qry && $new_qry->num_rows > 0) $new_data = $new_qry->fetch_assoc();
+            $action_type = empty($id) ? 'CREATE' : 'UPDATE';
+            $this->settings->audit_log('item_list', $item_id, $action_type, $old_data, $new_data, 'Items');
+            
             $this->settings->set_flashdata('success', $resp['msg']);
             $this->clear_cache('dashboard');
             
@@ -363,12 +420,22 @@ Class Master extends DBConnection {
     function delete_item(){
         extract($_POST);
         $id = intval($id);
+        
+        // Get old data for audit log BEFORE deleting
+        $old_data = [];
+        $old_qry = $this->conn->query("SELECT * FROM `item_list` WHERE id = '{$id}'");
+        if($old_qry && $old_qry->num_rows > 0) $old_data = $old_qry->fetch_assoc();
+
         $stmt = $this->conn->prepare("DELETE FROM `item_list` where id = ?");
         $stmt->bind_param("i", $id);
         if($stmt->execute()){
             $resp['status'] = 'success';
             $this->settings->set_flashdata('success', "Item successfully deleted.");
             $this->delete_from_index('item_list', $id);
+            
+            // Generate Audit Log
+            $this->settings->audit_log('item_list', $id, 'DELETE', $old_data, [], 'Items');
+            
             $this->clear_cache('dashboard');
         }else{
             $resp['status'] = 'failed';
@@ -496,6 +563,13 @@ Class Master extends DBConnection {
 
         $this->conn->begin_transaction();
         try {
+            // Get old data for audit
+            $old_data = [];
+            if(!empty($id)){
+                $old_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$id}' AND type='purchase'");
+                if($old_qry && $old_qry->num_rows > 0) $old_data = $old_qry->fetch_assoc();
+            }
+
             if(empty($id)){
                 $sql = "INSERT INTO `transactions` (`reference_code`, `type`, `entity_type`, `entity_id`, `total_amount`, `tax_perc`, `tax`, `remarks`, `transaction_date`, `created_by`) VALUES (?, 'purchase', 'Supplier', ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $this->conn->prepare($sql);
@@ -567,6 +641,14 @@ Class Master extends DBConnection {
             $this->update_summary_metrics($date_po);
             $this->clear_cache('dashboard');
             $this->settings->log_action($user_id, (empty($id) ? "Created" : "Updated")." Purchase Order", "Purchases", $po_id);
+            
+            // Generate Audit Log
+            $new_data = [];
+            $new_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$po_id}' AND type='purchase'");
+            if($new_qry && $new_qry->num_rows > 0) $new_data = $new_qry->fetch_assoc();
+            $action_type = empty($id) ? 'CREATE' : 'UPDATE';
+            $this->settings->audit_log('transactions', $po_id, $action_type, $old_data, $new_data, 'Purchases');
+
             $this->settings->set_flashdata('success', "Purchase successfully saved.");
             
             // Search Index Update
@@ -629,6 +711,11 @@ Class Master extends DBConnection {
             $del_items->execute();
             $del_items->close();
 
+            // Get old data for audit BEFORE deleting
+            $old_data = [];
+            $old_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$id}' AND type='purchase'");
+            if($old_qry && $old_qry->num_rows > 0) $old_data = $old_qry->fetch_assoc();
+
             // Delete purchase order in transactions
             $del_txn = $this->conn->prepare("DELETE FROM `transactions` WHERE id = ? AND type='purchase'");
             $del_txn->bind_param("i", $id);
@@ -644,6 +731,9 @@ Class Master extends DBConnection {
             $resp['status'] = 'success';
             $this->settings->set_flashdata('success', "Purchase successfully deleted.");
             $this->delete_from_index('transactions', $id);
+            
+            // Generate Audit Log
+            $this->settings->audit_log('transactions', $id, 'DELETE', $old_data, [], 'Purchases');
         } catch (Exception $e) {
             $this->conn->rollback();
             $resp['status'] = 'failed';
@@ -746,10 +836,19 @@ Class Master extends DBConnection {
                 $new_total = $current_total + $session_cart_total;
                 
                 // Update master total
+                $pos_old_data = [];
+                $pos_old_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$sale_id}'");
+                if($pos_old_qry && $pos_old_qry->num_rows > 0) $pos_old_data = $pos_old_qry->fetch_assoc();
+
                 $upd_sale = $this->conn->prepare("UPDATE `transactions` SET total_amount = ? WHERE id = ?");
                 $upd_sale->bind_param("di", $new_total, $sale_id);
                 $upd_sale->execute();
                 $upd_sale->close();
+
+                $pos_new_data = [];
+                $pos_new_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$sale_id}'");
+                if($pos_new_qry && $pos_new_qry->num_rows > 0) $pos_new_data = $pos_new_qry->fetch_assoc();
+                $this->settings->audit_log('transactions', $sale_id, 'UPDATE', $pos_old_data, $pos_new_data, 'POS Sales');
             } else {
                 // NOT EXISTS -> Create new
                 $sales_code = $this->generate_reference_code('sale', $pos_date);
@@ -763,6 +862,11 @@ Class Master extends DBConnection {
                 $ins_sale->execute();
                 $sale_id = $this->conn->insert_id;
                 $ins_sale->close();
+
+                $pos_new_data = [];
+                $pos_new_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$sale_id}'");
+                if($pos_new_qry && $pos_new_qry->num_rows > 0) $pos_new_data = $pos_new_qry->fetch_assoc();
+                $this->settings->audit_log('transactions', $sale_id, 'CREATE', [], $pos_new_data, 'POS Sales');
             }
             $sale_stmt->close();
 
@@ -819,16 +923,19 @@ Class Master extends DBConnection {
                 $pcode = $prow['reference_code'];
                 $new_paid_total = floatval($prow['total_amount']) + $paid_amount;
                 
-                // Append breakdown to remarks
-                $new_remarks = $prow['remarks'];
-                if(!empty($payment_breakdown)){
-                    $new_remarks .= ($new_remarks ? " | " : "") . "[Update] " . $payment_breakdown;
-                }
-                
-                $upd_pay = $this->conn->prepare("UPDATE `transactions` SET total_amount = ?, remarks = ? WHERE id = ?");
-                $upd_pay->bind_param("dsi", $new_paid_total, $new_remarks, $pay_id);
+                $pay_old_data = [];
+                $pay_old_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$pay_id}'");
+                if($pay_old_qry && $pay_old_qry->num_rows > 0) $pay_old_data = $pay_old_qry->fetch_assoc();
+
+                $upd_pay = $this->conn->prepare("UPDATE `transactions` SET total_amount = ? WHERE id = ?");
+                $upd_pay->bind_param("di", $new_paid_total, $pay_id);
                 $upd_pay->execute();
                 $upd_pay->close();
+
+                $pay_new_data = [];
+                $pay_new_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$pay_id}'");
+                if($pay_new_qry && $pay_new_qry->num_rows > 0) $pay_new_data = $pay_new_qry->fetch_assoc();
+                $this->settings->audit_log('transactions', $pay_id, 'UPDATE', $pay_old_data, $pay_new_data, 'POS Payments');
             } else {
                 // Insert new payment
                 $pcode = $this->generate_reference_code('payment', $pos_date);
@@ -841,6 +948,11 @@ Class Master extends DBConnection {
                 $ins_pay->execute();
                 $pay_id = $this->conn->insert_id;
                 $ins_pay->close();
+
+                $pay_new_data = [];
+                $pay_new_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$pay_id}'");
+                if($pay_new_qry && $pay_new_qry->num_rows > 0) $pay_new_data = $pay_new_qry->fetch_assoc();
+                $this->settings->audit_log('transactions', $pay_id, 'CREATE', [], $pay_new_data, 'POS Payments');
             }
             $pay_stmt->close();
 
@@ -872,6 +984,28 @@ Class Master extends DBConnection {
                 $chk_tl->close();
                 $ins_tl->close();
                 $upd_tl->close();
+            }
+
+            // Update the payment remarks with aggregated breakdown
+            if(isset($pay_id) && $pay_id > 0) {
+                $aggregate_stmt = $this->conn->prepare("SELECT a.name, t.amount FROM transaction_list t JOIN account_list a ON t.account_id = a.id WHERE t.ref_table='transactions' AND t.ref_id = ?");
+                $aggregate_stmt->bind_param("i", $pay_id);
+                $aggregate_stmt->execute();
+                $agg_res = $aggregate_stmt->get_result();
+                $agg_arr = [];
+                while($agg_row = $agg_res->fetch_assoc()){
+                    if($agg_row['amount'] > 0){
+                        $agg_arr[] = $agg_row['name'] . ": " . floatval($agg_row['amount']);
+                    }
+                }
+                $aggregate_stmt->close();
+                if(!empty($agg_arr)){
+                    $new_agg_remarks = "[POS Payment] " . implode(', ', $agg_arr);
+                    $upd_agg = $this->conn->prepare("UPDATE transactions SET remarks = ? WHERE id = ?");
+                    $upd_agg->bind_param("si", $new_agg_remarks, $pay_id);
+                    $upd_agg->execute();
+                    $upd_agg->close();
+                }
             }
 
             // Sync item stock quantities & Search Index
@@ -949,6 +1083,13 @@ Class Master extends DBConnection {
 
         $this->conn->begin_transaction();
         try {
+            // Get old data for audit
+            $old_data = [];
+            if(!empty($id)){
+                $old_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$id}' AND type='sale'");
+                if($old_qry && $old_qry->num_rows > 0) $old_data = $old_qry->fetch_assoc();
+            }
+
             if(empty($id)){
                 $sql = "INSERT INTO `transactions` (`reference_code`, `type`, `entity_id`, `payment_terms`, `total_amount`, `discount`, `remarks`, `transaction_date`, `created_by`) VALUES (?, 'sale', ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $this->conn->prepare($sql);
@@ -993,6 +1134,14 @@ Class Master extends DBConnection {
             $resp['status'] = 'success';
             $resp['id'] = $sale_id;
             $this->settings->log_action($user_id, (empty($id) ? "Created" : "Updated")." Sale", "Sales", $sale_id);
+            
+            // Generate Audit Log
+            $new_data = [];
+            $new_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$sale_id}' AND type='sale'");
+            if($new_qry && $new_qry->num_rows > 0) $new_data = $new_qry->fetch_assoc();
+            $action_type = empty($id) ? 'CREATE' : 'UPDATE';
+            $this->settings->audit_log('transactions', $sale_id, $action_type, $old_data, $new_data, 'Sales');
+
             $this->settings->set_flashdata('success', "Sale successfully saved.");
             
             // Search Index Update
@@ -1058,6 +1207,11 @@ Class Master extends DBConnection {
             $del_pay->execute();
             $del_pay->close();
             
+            // Get old data for audit BEFORE deleting
+            $old_data = [];
+            $old_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$id}' AND type='sale'");
+            if($old_qry && $old_qry->num_rows > 0) $old_data = $old_qry->fetch_assoc();
+
             // Delete sale
             $del_sale = $this->conn->prepare("DELETE FROM `transactions` WHERE id = ? AND type = 'sale'");
             $del_sale->bind_param("i", $id);
@@ -1073,6 +1227,9 @@ Class Master extends DBConnection {
             $resp['status'] = 'success';
             $this->settings->set_flashdata('success', "Sale successfully deleted.");
             $this->delete_from_index('transactions', $id);
+            
+            // Generate Audit Log
+            $this->settings->audit_log('transactions', $id, 'DELETE', $old_data, [], 'Sales');
         } catch (Exception $e) {
             $this->conn->rollback();
             $resp['status'] = 'failed';
@@ -1240,6 +1397,15 @@ Class Master extends DBConnection {
             $del_list->execute();
             $del_list->close();
 
+            // Get old data for audit before deleting
+            $old_data = [];
+            $old_qry = $this->conn->prepare("SELECT * FROM `transactions` WHERE reference_code = ? AND type='payment'");
+            $old_qry->bind_param("s", $group_code);
+            $old_qry->execute();
+            $res = $old_qry->get_result();
+            while($row = $res->fetch_assoc()) $old_data[] = $row;
+            $old_qry->close();
+
             // Delete all payments in the group
             $del_pay = $this->conn->prepare("DELETE FROM `transactions` WHERE reference_code = ? AND type='payment'");
             $del_pay->bind_param("s", $group_code);
@@ -1254,6 +1420,9 @@ Class Master extends DBConnection {
             $this->conn->commit();
             $resp['status'] = 'success';
             $this->settings->set_flashdata('success', "Payment successfully deleted.");
+            
+            // Generate Audit Log
+            $this->settings->audit_log('transactions', $id, 'DELETE', $old_data, [], 'Payments');
         } catch (Exception $e) {
             $this->conn->rollback();
             $resp['status'] = 'failed';
@@ -1964,6 +2133,13 @@ Class Master extends DBConnection {
 
         $this->conn->begin_transaction();
         try {
+            // Get old data for audit
+            $old_data = [];
+            if(!empty($id)){
+                $old_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$id}' AND type='expense'");
+                if($old_qry && $old_qry->num_rows > 0) $old_data = $old_qry->fetch_assoc();
+            }
+
             if(empty($id)){
                 $code = $this->generate_reference_code('expense', $trans_date);
                 if(!$code) throw new Exception("No active reference code setting for Expenses.");
@@ -2007,6 +2183,14 @@ Class Master extends DBConnection {
             $this->conn->commit();
             $this->update_summary_metrics($date_created);
             $this->settings->log_action($user_id, (empty($id) ? "Created" : "Updated")." Expense", "Expenses", $expense_id);
+            
+            // Generate Audit Log
+            $new_data = [];
+            $new_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$expense_id}' AND type='expense'");
+            if($new_qry && $new_qry->num_rows > 0) $new_data = $new_qry->fetch_assoc();
+            $action_type = empty($id) ? 'CREATE' : 'UPDATE';
+            $this->settings->audit_log('transactions', $expense_id, $action_type, $old_data, $new_data, 'Expenses');
+
             $resp['status'] = 'success';
             $this->settings->set_flashdata('success', "Expense successfully saved.");
             
@@ -2045,6 +2229,11 @@ Class Master extends DBConnection {
 
             if(isset($exp['account_id'])) $this->update_account_balance($exp['account_id']);
 
+            // Get old data for audit before deleting
+            $old_data = [];
+            $old_qry = $this->conn->query("SELECT * FROM `transactions` WHERE id = '{$id}' AND type='expense'");
+            if($old_qry && $old_qry->num_rows > 0) $old_data = $old_qry->fetch_assoc();
+
             $del_txn = $this->conn->prepare("DELETE FROM `transactions` WHERE id = ? AND type='expense'");
             $del_txn->bind_param("i", $id);
             $del_txn->execute();
@@ -2055,6 +2244,9 @@ Class Master extends DBConnection {
             $resp['status'] = 'success';
             $this->settings->set_flashdata('success', "Expense successfully deleted.");
             $this->delete_from_index('transactions', $id);
+            
+            // Generate Audit Log
+            $this->settings->audit_log('transactions', $id, 'DELETE', $old_data, [], 'Expenses');
         } catch (Exception $e) {
             $this->conn->rollback();
             $resp['status'] = 'failed';
@@ -2813,8 +3005,9 @@ function get_balances_by_date(){
         $expected_stmt = $this->conn->prepare("SELECT SUM(CASE WHEN type = 1 THEN amount WHEN type = 2 THEN -amount ELSE 0 END) FROM transaction_list WHERE date_created BETWEEN ? AND ? AND account_id IN (SELECT id FROM account_list WHERE name LIKE '%Cash%' AND status = 1)");
         $expected_stmt->bind_param("ss", $day_start, $day_end);
         $expected_stmt->execute();
-        $expected = $expected_stmt->get_result()->fetch_array()[0];
-        $account_data['net_movement'] = $expected ? floatval($expected) : 0;
+        $day_expected_result = $expected_stmt->get_result()->fetch_array();
+        $day_expected = $day_expected_result ? $day_expected_result[0] : 0;
+        $account_data['net_movement'] = $day_expected ? floatval($day_expected) : 0;
         $expected_stmt->close();
         
         echo json_encode($account_data);

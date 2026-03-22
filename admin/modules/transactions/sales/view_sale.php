@@ -270,12 +270,12 @@ endif;
                             <?php 
                                 $creator = "N/A";
                                 if(isset($created_by) && $created_by > 0){
-                                    $c_qry = $conn->query("SELECT display_name as name FROM entity_list WHERE id = '{$created_by}' AND entity_type = 'User'");
+                                    $c_qry = $conn->query("SELECT CONCAT(firstname, ' ', lastname) as name FROM users WHERE id = '{$created_by}'");
                                     if($c_qry->num_rows > 0) $creator = $c_qry->fetch_assoc()['name'];
                                 }
                                 $updater = "N/A";
                                 if(isset($updated_by) && $updated_by > 0){
-                                    $u_qry = $conn->query("SELECT display_name as name FROM entity_list WHERE id = '{$updated_by}' AND entity_type = 'User'");
+                                    $u_qry = $conn->query("SELECT CONCAT(firstname, ' ', lastname) as name FROM users WHERE id = '{$updated_by}'");
                                     if($u_qry->num_rows > 0) $updater = $u_qry->fetch_assoc()['name'];
                                 }
                             ?>
